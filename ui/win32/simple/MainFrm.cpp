@@ -1828,10 +1828,14 @@ void	CMainFrame::OnCommand(UINT uNotifyCode, int nID, CWindow wndCtl)
 
 LRESULT CMainFrame::OnCustomDraw(int idCtrl, LPNMHDR pnmh, BOOL& bHandled)
 {
+	SetMsgHandled(true);
 	LPNMCUSTOMDRAW lpNMCustomDraw = (LPNMCUSTOMDRAW)pnmh;
 	DWORD dwRet = 0;
-	if (lpNMCustomDraw->dwDrawStage == CDDS_ITEMPOSTPAINT | CDDS_SUBITEM) {	// CCustomDraw‚É‚Í‚È‚º‚©‚±‚ê‚¾‚¯‚È‚¢‚Ì‚Å
-		return OnSubItemPostPaint(idCtrl, lpNMCustomDraw);
+	switch (lpNMCustomDraw->dwDrawStage)  {	// CCustomDraw‚É‚Í‚È‚º‚©‚±‚ê‚¾‚¯‚È‚¢‚Ì‚Å
+		case CDDS_ITEMPOSTPAINT | CDDS_SUBITEM:
+			return OnSubItemPostPaint(idCtrl, lpNMCustomDraw);
+		default:
+			break;
 	}
 	SetMsgHandled(false);
 	return 0;
