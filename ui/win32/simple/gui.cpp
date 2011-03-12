@@ -168,7 +168,6 @@ GnuID selchanID;
 WLock selchanID_lock;
 
 extern WINDOWPLACEMENT winPlace;
-bool guiFlg = false;
 
 //JP-MOD
 enum GUIProc_CtrlID
@@ -2447,7 +2446,7 @@ BOOL GUIProc_OnCreate(HWND hwnd, LPCREATESTRUCT lpCreateStruct)
 		return FALSE;
 	}
 
-	if(guiFlg)
+	//if(guiFlg)
 		::SetWindowPlacement(hwnd, &winPlace);
 
 	GUIProc_InitializeSysMenu(hwnd);
@@ -3323,7 +3322,6 @@ void GUIProc_OnChanInfoChanged(HWND hwnd)
 void GUIProc_OnClose(HWND hwnd)
 {
 	::GetWindowPlacement(hwnd, &winPlace);
-	guiFlg = true;
 
 	::DestroyWindow(hwnd);
 }
@@ -3340,7 +3338,6 @@ void GUIProc_OnDestroy(HWND hwnd)
 	}
 
 	::GetWindowPlacement(hwnd, &winPlace);
-	guiFlg = true;
 
 	guiThread.active = false;
 	//guiThread.lock();

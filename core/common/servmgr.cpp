@@ -1,3 +1,4 @@
+
 // ------------------------------------------------
 // File : servmgr.cpp
 // Date: 4-apr-2002
@@ -130,7 +131,7 @@ ServMgr::ServMgr()
 	kickKeepTime = 0;
 	vpDebug = false;
 	saveIniChannel = true;
-	saveGuiPos = false;
+	saveGuiPos = true;
 	keepDownstreams = true;
 
 	chanLog="";
@@ -951,7 +952,6 @@ static void  writeServHost(IniFile &iniFile, ServHost &sh)
 }
 
 #ifdef WIN32
-extern bool guiFlg;
 extern WINDOWPLACEMENT winPlace;
 extern HWND guiWnd;
 #endif
@@ -1056,7 +1056,7 @@ void ServMgr::saveSettings(const char *fn)
 		iniFile.writeBoolValue("saveIniChannel", servMgr->saveIniChannel);
 #ifdef WIN32
 		iniFile.writeBoolValue("saveGuiPos", servMgr->saveGuiPos);
-		if (guiFlg){
+		if (servMgr->saveGuiPos){
 //			GetWindowPlacement(guiWnd, &winPlace);
 			iniFile.writeIntValue("guiTop", winPlace.rcNormalPosition.top);
 			iniFile.writeIntValue("guiBottom", winPlace.rcNormalPosition.bottom);
@@ -1468,9 +1468,6 @@ void ServMgr::loadSettings(const char *fn)
 				winPlace.ptMinPosition.y = -1;
 				winPlace.ptMaxPosition.x = -1;
 				winPlace.ptMaxPosition.y = -1;
-				if (servMgr->saveGuiPos){
-					guiFlg = true;
-				}
 			}
 			else if (iniFile.isName("guiSimpleChannelList")) //JP-MOD
 				servMgr->guiSimpleChannelList = iniFile.getBoolValue();
