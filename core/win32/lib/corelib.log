@@ -1,0 +1,31 @@
+﻿  wsys.cpp
+  wsocket.cpp
+  xml.cpp
+  url.cpp
+  sys.cpp
+  stream.cpp
+  stats.cpp
+  socket.cpp
+  servmgr.cpp
+  servhs.cpp
+  servent.cpp
+  rtsp.cpp
+  peercast.cpp
+  pcp.cpp
+  ogg.cpp
+  nsv.cpp
+  mp3.cpp
+  mms.cpp
+  jis.cpp
+  inifile.cpp
+  Generating Code...
+  Compiling...
+  icy.cpp
+  http.cpp
+  html.cpp
+  gnutella.cpp
+  channel.cpp
+  Generating Code...
+C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\Microsoft.CppBuild.targets(1095,5): warning MSB8012: TargetPath(G:\Program\_PeerCastPP\src\core\win32\lib\.\Debug\corelib.lib) does not match the Library's OutputFile property value (G:\Program\_PeerCastPP\src\core\win32\lib\Debug\corelib.lib). This may cause your project to build incorrectly. To correct this, please make sure that $(OutDir), $(TargetName) and $(TargetExt) property values match the value specified in %(Lib.OutputFile).
+rtsp.obj : warning LNK4221: This object file does not define any previously undefined public symbols, so it will not be used by any link operation that consumes this library
+  corelib.vcxproj -> G:\Program\_PeerCastPP\src\core\win32\lib\.\Debug\corelib.lib
