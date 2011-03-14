@@ -31,6 +31,41 @@ enum {
 class Channel;
 
 ///////////////////////////////////////////
+/// タスクトレイアイコン
+class CTrayIcon
+{
+public:
+	CTrayIcon();
+	~CTrayIcon();
+
+	static CTrayIcon*	GetInstance() { return s_pThis; }
+
+	void	AddTrayIcon(HWND hWnd);
+	void	RemoveTrayIcon();
+	
+	void	ModifyIcon(int nQuality = 4);
+	void	ChannelPopup(LPCTSTR title, LPCTSTR msg, bool bBallonTip = true);
+	void	ClearChannelPopup();
+
+	BEGIN_MSG_MAP_EX( CTrayIcon )
+		MESSAGE_HANDLER_EX( WM_TASKBARCREATED, OnTaskbarCreated )
+	END_MSG_MAP()
+
+	LRESULT OnTaskbarCreated(UINT uMsg, WPARAM wParam, LPARAM lParam);
+
+private:
+
+	// Data members
+	static CTrayIcon*	s_pThis;
+	NOTIFYICONDATA		m_trayIcon;
+	UINT				WM_TASKBARCREATED;
+	HWND				m_hWndNotify;
+	CIcon				m_IconAntenna[5];
+	int					m_nNowQuality;
+};
+
+
+///////////////////////////////////////////
 /// チャンネルリストビュー
 
 class CListViewChan : public CWindowImpl<CListViewChan, CListViewCtrl>
@@ -57,7 +92,6 @@ public:
 
 	// Message map
 	BEGIN_MSG_MAP_EX( CListViewChan )
-
 	END_MSG_MAP()
 
 private:
@@ -105,13 +139,14 @@ public:
 		MSG_WM_DESTROY	( OnDestroy	)
 		MSG_WM_SYSCOMMAND( OnSysCommand )
 		MSG_WM_COPYDATA	( OnCopyData )
-		NOTIFY_HANDLER_EX(IDC_LIST3, LVN_ITEMCHANGED, OnChanListItemChanged)
-		NOTIFY_HANDLER_EX(IDC_LIST3, LVN_GETDISPINFO, OnChanListGetDispInfo)
-		NOTIFY_HANDLER_EX(IDC_LIST3, NM_CLICK, OnChanListClick )
-		NOTIFY_HANDLER_EX(IDC_LIST3, NM_DBLCLK, OnChanListDblClick )
-		NOTIFY_HANDLER_EX(IDC_LIST3, NM_RCLICK, OnChanListRClick )
-		NOTIFY_HANDLER_EX(IDC_LIST2, LVN_GETDISPINFO, OnConnectListGetDispInfo)
-		NOTIFY_HANDLER_EX(IDC_LIST2, NM_RCLICK, OnConnectListRClick )
+		
+		NOTIFY_HANDLER_EX(IDC_CHANNELLIST, LVN_ITEMCHANGED, OnChanListItemChanged)
+		NOTIFY_HANDLER_EX(IDC_CHANNELLIST, LVN_GETDISPINFO, OnChanListGetDispInfo)
+		NOTIFY_HANDLER_EX(IDC_CHANNELLIST, NM_CLICK, OnChanListClick )
+		NOTIFY_HANDLER_EX(IDC_CHANNELLIST, NM_DBLCLK, OnChanListDblClick )
+		NOTIFY_HANDLER_EX(IDC_CHANNELLIST, NM_RCLICK, OnChanListRClick )
+		NOTIFY_HANDLER_EX(IDC_CONNECTLIST, LVN_GETDISPINFO, OnConnectListGetDispInfo)
+		NOTIFY_HANDLER_EX(IDC_CONNECTLIST, NM_RCLICK, OnConnectListRClick )
 		NOTIFY_CODE_HANDLER_EX( TBN_DROPDOWN, OnDropDownLogMenu )
 		MESSAGE_HANDLER_EX( WM_ADDLOG			, OnAddLog )
 		MESSAGE_HANDLER_EX( WM_REFRESH			, OnRefresh )
@@ -146,6 +181,7 @@ public:
 		CHAIN_MSG_MAP(CCustomDraw<CMainFrame>)
 		NOTIFY_CODE_HANDLER(NM_CUSTOMDRAW, OnCustomDraw)
 		CHAIN_MSG_MAP(CFrameWindowImpl<CMainFrame>)
+		CHAIN_MSG_MAP_MEMBER( m_TrayIcon )
 		//REFLECT_NOTIFICATIONS()
 	ALT_MSG_MAP(1)
 		MESSAGE_HANDLER_EX( WM_TRAYICON, OnTrayIcon )
@@ -157,6 +193,7 @@ public:
 	void	OnDestroy();
 	void	OnSysCommand(UINT nID, CPoint pt);
 	BOOL	OnCopyData(CWindow wnd, PCOPYDATASTRUCT pCopyDataStruct);
+	
 	LRESULT OnChanListItemChanged(LPNMHDR pnmh);
 	LRESULT OnChanListGetDispInfo(LPNMHDR pnmh);
 	LRESULT	OnChanListClick(LPNMHDR pnmh);
@@ -222,7 +259,7 @@ private:
 	CListViewChan		m_ListChan;
 	CListViewConnect	m_ListConnect;
 	CListBox			m_LogList;
-public:
+	CTrayIcon			m_TrayIcon;
 	CContainedWindow	m_wndMessage;
 };
 

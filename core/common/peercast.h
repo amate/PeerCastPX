@@ -21,9 +21,7 @@ class Sys;
 class PeercastInstance 
 {
 public:
-	PeercastInstance()
-	:isQuitting(false) 
-	{}
+	PeercastInstance() :isQuitting(false) {}
 
 	virtual void	APICALL init();
 
@@ -64,8 +62,8 @@ class PeercastApplication
 {
 public:
 
-	virtual const char * APICALL getPath() {return "./";}
-	virtual const char * APICALL getIniFilename() {return "peercast.ini";}
+	virtual const char * APICALL getPath() { return "./"; }
+	virtual const char * APICALL getIniFilename() { return "peercast.ini"; }
 	virtual bool	APICALL clearTemp() { return false; } //JP-EX
 	virtual void	APICALL openLogFile() {} //JP-EX
 	virtual void	APICALL getDirectory() {} //JP-EX
@@ -89,13 +87,14 @@ extern PeercastInstance *peercastInst;
 extern PeercastApplication *peercastApp;
 
 // ----------------------------------
+#if 0
 #ifdef WIN32
 extern "C"
 {
 __declspec( dllexport ) PeercastInstance * newPeercast(PeercastApplication *);
 };
 #endif
-
+#endif
 // ----------------------------------
 
 

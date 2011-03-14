@@ -93,6 +93,9 @@
     <ClCompile Include="..\wsys.cpp">
       <Filter>Win32 Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\common\common.cpp">
+      <Filter>Core Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\common\asf.h">

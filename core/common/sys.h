@@ -55,19 +55,11 @@ public:
 #endif
 	};
 
-	String() {clear();}
-	String(const char *p, TYPE t=T_ASCII) 
-	{
-		set(p,t);
-	}
+	String() { clear(); }
+	String(const char *p, TYPE t = T_ASCII) { set(p, t); }
 
 	// set from straight null terminated string
-	void set(const char *p, TYPE t=T_ASCII) 
-	{
-		strncpy(data,p,MAX_LEN-1);
-		data[MAX_LEN-1] = 0;
-		type = t;
-	}
+	void set(const char *p, TYPE t = T_ASCII);
 
 	// set from quoted or unquoted null terminated string
 	void setFromString(const char *str, TYPE t=T_ASCII);
@@ -78,40 +70,14 @@ public:
 	// set from time
 	void setFromTime(unsigned int t);
 
-
 	// from single word (end at whitespace)
-	void setFromWord(const char *str)
-	{
-		int i;
-		for(i=0; i<MAX_LEN-1; i++)
-		{
-			data[i] = *str++;
-			if ((data[i]==0) || (data[i]==' '))
-				break;
-		}
-		data[i]=0;
-	}
-
+	void setFromWord(const char *str);
 
 	// set from null terminated string, remove first/last chars
-	void setUnquote(const char *p, TYPE t=T_ASCII) 
-	{
-		size_t slen = strlen(p);
-		if (slen > 2)
-		{
-			if (slen >= MAX_LEN) slen = MAX_LEN;
-			strncpy(data,p+1,slen-2);
-			data[slen-2]=0;
-		}else
-			clear();
-		type = t;
-	}
+	void setUnquote(const char *p, TYPE t = T_ASCII);
 
-	void clear() 
-	{
-		data[0]=0;
-		type = T_UNKNOWN;
-	}
+	void clear();
+
 	void ASCII2ESC(const char *,bool);
 	void ASCII2HTML(const char *);
 	void ASCII2META(const char *,bool);
@@ -126,74 +92,51 @@ public:
 
 	static	int	base64WordToChars(char *,const char *);
 
-	static bool isSame(const char *s1, const char *s2) {return strcmp(s1,s2)==0;}
+	static bool isSame(const char *s1, const char *s2) { return strcmp(s1, s2) == 0; }
 
-	bool startsWith(const char *s) const {return strncmp(data,s,strlen(s))==0;}
+	bool startsWith(const char *s) const { return strncmp(data, s, strlen(s)) == 0; }
 	bool isValidURL();
-	bool isEmpty() {return data[0]==0;}
-	bool isSame(::String &s) const {return strcmp(data,s.data)==0;}
-	bool isSame(const char *s) const {return strcmp(data,s)==0;}
-	bool contains(::String &s) {return stristr(data,s.data)!=NULL;}
-	bool contains(const char *s) {return stristr(data,s)!=NULL;}
-	void append(const char *s)
-	{
-		if ((strlen(s)+strlen(data) < (MAX_LEN-1)))
-			strcat(data,s);
-	}
-	void append(char c)
-	{
-		char tmp[2];
-		tmp[0]=c;
-		tmp[1]=0;
-		append(tmp);
-	}
+	bool isEmpty() const { return data[0] == 0; }
+	bool isSame(::String &s) const { return strcmp(data, s.data) == 0; }
+	bool isSame(const char *s) const { return strcmp(data, s) == 0; }
+	bool contains(::String &s) { return stristr(data, s.data) != NULL; }
+	bool contains(const char *s) { return stristr(data, s) != NULL; }
+	void append(const char *s);
+	void append(char c);
+	void prepend(const char *s);
 
-	void prepend(const char *s)
-	{
-		::String tmp;
-		tmp.set(s);
-		tmp.append(data);
-		tmp.type = type;
-		*this = tmp;
-	}
+	bool operator == (const char *s) const { return isSame(s); }
+	bool operator != (const char *s) const { return !isSame(s); }
 
-	bool operator == (const char *s) const {return isSame(s);}
-	bool operator != (const char *s) const {return !isSame(s);}
-
-	operator const char *() const {return data;}
+	operator const char* () const { return data; }
 
 	void convertTo(TYPE t);
 
-	char	*cstr() {return data;}
+	char*	cstr() { return data; }
 
-	static bool isWhitespace(char c) {return c==' ' || c=='\t';}
+	static bool isWhitespace(char c) { return c==' ' || c=='\t'; }
 
+	// Data members
 	TYPE	type;
 	char	data[MAX_LEN];
 };
 
 // ------------------------------------
 namespace peercast {
-class Random {
-public:
-	Random(int s=0x14235465)
-	{
-		setSeed(s);
-	}
-	
-	unsigned int next()
-	{
-		return RAND(a[0],a[1]);
-	}
 
-	void setSeed(int s)
-	{
-		a[0] = a[1] = s;
-	}	
+class Random 
+{
+public:
+	Random(int s=0x14235465) { setSeed(s); }
+	
+	void setSeed(int s) { a[0] = a[1] = s; }	
+	unsigned int next() { return RAND(a[0],a[1]); }
 	
 	unsigned long a[2];
 };
-}
+
+}	// namespace peercast
+
 // ------------------------------------
 class Sys
 {
@@ -204,14 +147,12 @@ public:
     virtual class ClientSocket*	createSocket() = 0;
 	virtual bool				startThread(class ThreadInfo *) = 0;
 	virtual void				sleep(int) = 0;
-	virtual void				appMsg(long,long = 0) = 0;
 	virtual unsigned int		getTime() = 0;		
 	virtual double				getDTime() = 0;		
 	virtual unsigned int		rnd() = 0;
-	virtual void				getURL(const char *) = 0;
+	virtual void				getURL(const char* url) = 0;
 	virtual void				exit() = 0;
-	virtual bool				hasGUI() = 0;
-	virtual void				callLocalURL(const char *,int)=0;
+	virtual void				callLocalURL(const char* str,int port) = 0;
 	virtual void				executeFile(const char *) = 0;
 	virtual void				endThread(ThreadInfo *) {}
 	virtual void				waitThread(ThreadInfo *, int timeout = 30000) {}
@@ -242,7 +183,7 @@ public:
 
 typedef __int64 int64_t;
 
-
+#if 0
 // ------------------------------------
 class WEvent
 {
@@ -286,7 +227,7 @@ public:
 
 	HANDLE event;
 };
-
+#endif
 
 
 // ------------------------------------
@@ -299,22 +240,12 @@ typedef uintptr_t THREAD_HANDLE;
 class WLock
 {
 public:
-	WLock()
-	{
-		InitializeCriticalSection(&cs);
-	}
+	WLock() { InitializeCriticalSection(&cs); }
 
-
-	void	on()
-	{
-		EnterCriticalSection(&cs);
-	}
-
-	void	off()
-	{
-		LeaveCriticalSection(&cs);
-	}
+	void	on()  { EnterCriticalSection(&cs); }
+	void	off() { LeaveCriticalSection(&cs); }
 	
+private:
 	CRITICAL_SECTION cs;
 };
 #endif
@@ -470,22 +401,11 @@ public:
 		T_CHANNEL,
 	};
 
-	LogBuffer(int i, int l)
-	{
-		lineLen = l;
-		maxLines = i;
-		currLine = 0;
-		buf = new char[lineLen*maxLines];
-		times = new unsigned int [maxLines];
-		types = new TYPE [maxLines];
-	}
+	LogBuffer(int i, int l);
 
-	void	clear()
-	{
-		currLine = 0;
-	}
+	void	clear() { currLine = 0; }
 	void	write(const char *, TYPE);
-	static const char *getTypeStr(TYPE t) {return logTypes[t];}
+	static const char *getTypeStr(TYPE t) { return logTypes[t]; }
 	void	dumpHTML(class Stream &);
 
 	char *buf;
@@ -498,7 +418,7 @@ public:
 };
 
 #define RWLOCK_READ_MAX 32
-
+#if 0
 class LockBlock
 {
 public:
@@ -511,6 +431,7 @@ private:
 	WLock lock;
 	bool flg;
 };
+#endif
 
 // ------------------------------------
 extern Sys *sys;

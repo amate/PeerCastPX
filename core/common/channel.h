@@ -529,7 +529,7 @@ public:
 
 	double	startTime,syncTime;
 
-	WEvent	syncEvent;
+	//WEvent	syncEvent;
 
 	Channel *next;
 

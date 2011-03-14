@@ -27,14 +27,17 @@
 #endif
 
 // ----------------------------------
+/// 一般例外
 class GeneralException
 {
 public:
+	/// コンストラクタ
     GeneralException(const char *m, int e = 0) 
 	{
-		strcpy(msg,m);
-		err=e;
+		strcpy(msg, m);
+		err = e;
 	}
+
     char msg[128];
 	int err;
 };
@@ -54,6 +57,7 @@ public:
     SockException(const char *m="Socket") : StreamException(m) {}
     SockException(const char *m, int e) : StreamException(m,e) {}
 };
+
 // ----------------------------------
 class EOFException : public StreamException
 {
@@ -70,41 +74,21 @@ public:
     CryptException(const char *m, int e) : StreamException(m,e) {}
 };
 
-
 // ----------------------------------
 class TimeoutException : public StreamException
 {
 public:
     TimeoutException(const char *m="Timeout") : StreamException(m) {}
 };
+
+
 // --------------------------------
 class GnuID
 {
 public:
-	bool	isSame(GnuID &gid)
-	{
-		for(int i=0; i<16; i++)
-			if (gid.id[i] != id[i])
-				return false;
-		return true;
-	}
-
-
-	bool	isSet()
-	{
-		for(int i=0; i<16; i++)
-			if (id[i] != 0)
-				return true;
-		return false;
-	}
-
-	void	clear()
-	{
-		for(int i=0; i<16; i++)
-			id[i] = 0;
-		storeTime = 0;
-	}
-
+	bool	isSame(GnuID &gid);
+	bool	isSet();
+	void	clear();
 
 	void	generate(unsigned char = 0);
 	void	encode(class Host *, const char *,const char *,unsigned char);
@@ -117,6 +101,7 @@ public:
 	unsigned char id[16];
 	unsigned int storeTime;
 };
+
 // --------------------------------
 class GnuIDList 
 {
@@ -137,101 +122,34 @@ public:
 // ----------------------------------
 class Host
 {
-    inline unsigned int ip3()
-    {
-        return (ip>>24);
-    }
-    inline unsigned int ip2()
-    {
-        return (ip>>16)&0xff;
-    }
-    inline unsigned int ip1()
-    {
-        return (ip>>8)&0xff;
-    }
-    inline unsigned int ip0()
-    {
-        return ip&0xff;
-    }
-
 public:
-	Host(){init();}
-	Host(unsigned int i, unsigned short p)
-	{
-		ip = i;
-		port = p;
-		value = 0;
-	}
-
-	void	init()
-	{
-		ip = 0;
-		port = 0;
-		value = 0;
-	}
-
+	Host() { init(); }
+	Host(unsigned int i, unsigned short p);
+	void	init();
 
 	bool	isMemberOf(Host &);
 
-	bool	isSame(Host &h)
-	{
-		return (h.ip == ip) && (h.port == port);
-	}
+	bool	isSame(Host &h) { return (h.ip == ip) && (h.port == port); }
 
-	bool classType() {return globalIP();}
+	bool	classType() { return globalIP(); }
 
-	bool	globalIP()
-	{
-		// local host
-		if ((ip3() == 127) && (ip2() == 0) && (ip1() == 0) && (ip0() == 1))
-			return false;
+	/// グローバルIPがどうか
+	bool	globalIP();
 
-		// class A
-		if (ip3() == 10)
-			return false;
+	/// ローカルIPかどうか
+	bool	localIP() { return !globalIP(); }
 
-		// class B
-		if ((ip3() == 172) && (ip2() >= 16) && (ip2() <= 31))
-			return false;
+	/// ループバッグIP(127.0.0.1)かどうか
+	bool	loopbackIP();
 
-		// class C
-		if ((ip3() == 192) && (ip2() == 168))
-			return false;
+	/// ipが有効か無効か
+	bool	isValid() { return (ip != 0); }
 
-		return true;
-	}
-	bool	localIP()
-	{
-		return !globalIP();
-	}
+	bool	isSameType(Host &h);
 
-	bool	loopbackIP()
-	{
-//		return ((ipByte[3] == 127) && (ipByte[2] == 0) && (ipByte[1] == 0) && (ipByte[0] == 1));
-		return ((ip3() == 127) && (ip2() == 0) && (ip1() == 0) && (ip0() == 1));
-	}
+	void	IPtoStr(char *str);
 
-	bool	isValid()
-	{
-		return (ip != 0);
-	}
-
-
-	bool	isSameType(Host &h)
-	{
-			return ( (globalIP() && h.globalIP()) ||
-			         (!globalIP() && !h.globalIP()) ); 
-	}
-
-	void	IPtoStr(char *str)
-	{
-		sprintf(str,"%d.%d.%d.%d",(ip>>24)&0xff,(ip>>16)&0xff,(ip>>8)&0xff,(ip)&0xff);
-	}
-
-	void	toStr(char *str)
-	{
-		sprintf(str,"%d.%d.%d.%d:%d",(ip>>24)&0xff,(ip>>16)&0xff,(ip>>8)&0xff,(ip)&0xff,port);
-	}
+	void	toStr(char *str);
 
 	void	fromStrIP(const char *,int);
 	void	fromStrName(const char *,int);
@@ -247,7 +165,15 @@ public:
 
     unsigned short port;
 	unsigned int value;
+
+private:
+    unsigned int ip3() { return (ip >> 24); }
+    unsigned int ip2() { return (ip >> 16) & 0xff; }
+    unsigned int ip1() { return (ip >>  8) & 0xff; }
+    unsigned int ip0() {  return ip & 0xff; }
 };
+
+
 // ----------------------------------
 #define SWAP2(v) ( ((v&0xff)<<8) | ((v&0xff00)>>8) )
 #define SWAP3(v) (((v&0xff)<<16) | ((v&0xff00)) | ((v&0xff0000)>>16) )
@@ -269,7 +195,7 @@ inline int strToID(char *str)
     	int i;
         char s[8];
     };
-    strncpy(s,str,4);
+    strncpy(s, str, 4);
     return i;
 }
 

@@ -36,18 +36,16 @@ public:
 	// Overrides
 	virtual	ClientSocket*	createSocket();
 	virtual bool			startThread(ThreadInfo *);
-	virtual void			sleep(int );
-	virtual void			appMsg(long,long);
+	virtual void			sleep(int ms) { Sleep(ms); }
 	virtual unsigned int	getTime();
 	virtual double			getDTime();		
-	virtual unsigned int	rnd() {return rndGen.next();}
-	virtual void			getURL(const char *);
+	virtual unsigned int	rnd() { return rndGen.next(); }
+	virtual void			getURL(const char* url);
 	virtual void			exit();
-	virtual bool			hasGUI() {return mainWindow!=NULL;}
 	virtual void			callLocalURL(const char *str,int port);
 	virtual void			executeFile(const char *);
 	virtual void			endThread(ThreadInfo *);
-	virtual void			waitThread(ThreadInfo *, int timeout = 30000);
+	virtual void			waitThread(ThreadInfo *, int timeout = 30 * 1000);
 
 
 	HWND	mainWindow;

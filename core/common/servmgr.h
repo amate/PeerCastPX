@@ -112,13 +112,9 @@ public:
 // ServMgr keeps track of Servents
 class ServMgr
 {
-
-
-
 public:
 
-	enum NOTIFY_TYPE
-	{
+	enum NOTIFY_TYPE {
 		NT_UPGRADE			= 0x0001,
 		NT_PEERCAST			= 0x0002,
 		NT_BROADCASTERS		= 0x0004,
@@ -126,14 +122,13 @@ public:
 		NT_APPLAUSE			= 0x0010 //JP-MOD
 	};
 
-	enum FW_STATE
-	{
+	enum FW_STATE {
 		FW_OFF,
 		FW_ON,
 		FW_UNKNOWN
 	};
-	enum {
 
+	enum {
 		MAX_HOSTCACHE = 100,		// max. amount of hosts in cache
 		MIN_HOSTS	= 3,			// min. amount of hosts that should be kept in cache
 
@@ -150,15 +145,12 @@ public:
 
 		MAX_PREVIEWTIME	= 300,		// max. seconds preview per channel available (direct connections)
 		MAX_PREVIEWWAIT = 300,		// max. seconds wait between previews 
-
 	};
 
-	enum AUTH_TYPE
-	{
+	enum AUTH_TYPE {
 		AUTH_COOKIE,
 		AUTH_HTTPBASIC
 	};
-
 	
 
 	ServMgr();
@@ -324,8 +316,9 @@ public:
 
 	unsigned int		totalOutput(bool);
 
-	static ThreadInfo serverThread,idleThread;
-
+	// Data members
+	static ThreadInfo serverThread;
+	static ThreadInfo idleThread;
 
 	Servent *servents;
 	WLock	lock;
@@ -336,8 +329,8 @@ public:
 
 	bool	allowGnutella;
 
-	unsigned int		maxBitrateOut,maxControl,maxRelays,maxDirect;
-	unsigned int		minGnuIncoming,maxGnuIncoming;
+	unsigned int		maxBitrateOut, maxControl, maxRelays, maxDirect;
+	unsigned int		minGnuIncoming, maxGnuIncoming;
 	unsigned int		maxServIn;
 
 	bool	isDisabled;
@@ -366,7 +359,7 @@ public:
 	bool	autoConnect,autoServe,forceLookup;
 	int		queryTTL;
 
-	unsigned int		allowServer1,allowServer2;
+	unsigned int		allowServer1, allowServer2;
 	unsigned int		startTime;
 	unsigned int		tryoutDelay;
 	unsigned int		refreshHTML;
@@ -385,7 +378,7 @@ public:
 	AUTH_TYPE	authType;
 
 	char	htmlPath[128];
-	unsigned int	clientVersions[MAX_VERSIONS],clientCounts[MAX_VERSIONS];
+	unsigned int	clientVersions[MAX_VERSIONS], clientCounts[MAX_VERSIONS];
 	int	numVersions;
 
 	int serventNum;

@@ -32,6 +32,7 @@ class MyPeercastInst : public PeercastInstance
 public:
 	virtual Sys * APICALL createSys();
 };
+
 // ---------------------------------
 class MyPeercastApp : public PeercastApplication
 {

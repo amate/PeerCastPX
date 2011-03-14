@@ -139,83 +139,7 @@ void Sys::sleepIdle()
 	sleep(idleSleepTime);
 }
 
-// ------------------------------------------
-bool Host::isLocalhost()
-{
-	return loopbackIP() || (ip == ClientSocket::getIP(NULL)); 
-}
-// ------------------------------------------
-void Host::fromStrName(const char *str, int p)
-{
-	if (!strlen(str))
-	{
-		port = 0;
-		ip = 0;
-		return;
-	}
 
-	char name[128];
-	strncpy(name,str,sizeof(name)-1);
-	name[127] = '\0';
-	port = p;
-	char *pp = strstr(name,":");
-	if (pp)
-	{
-		port = atoi(pp+1);
-		pp[0] = 0;
-	}
-
-	ip = ClientSocket::getIP(name);
-}
-// ------------------------------------------
-void Host::fromStrIP(const char *str, int p)
-{
-	unsigned int ipb[4];
-	unsigned int ipp;
-
-
-	if (strstr(str,":"))
-	{
-		if (sscanf(str,"%03d.%03d.%03d.%03d:%d",&ipb[0],&ipb[1],&ipb[2],&ipb[3],&ipp) == 5)
-		{
-			ip = ((ipb[0]&0xff) << 24) | ((ipb[1]&0xff) << 16) | ((ipb[2]&0xff) << 8) | ((ipb[3]&0xff));
-			port = ipp;
-		}else
-		{
-			ip = 0;
-			port = 0;
-		}
-	}else{
-		port = p;
-		if (sscanf(str,"%03d.%03d.%03d.%03d",&ipb[0],&ipb[1],&ipb[2],&ipb[3]) == 4)
-			ip = ((ipb[0]&0xff) << 24) | ((ipb[1]&0xff) << 16) | ((ipb[2]&0xff) << 8) | ((ipb[3]&0xff));
-		else
-			ip = 0;
-	}
-}
-// -----------------------------------
-bool Host::isMemberOf(Host &h)
-{
-	if (h.ip==0)
-		return false;
-
-    if( h.ip0() != 255 && ip0() != h.ip0() )
-        return false;
-    if( h.ip1() != 255 && ip1() != h.ip1() )
-        return false;
-    if( h.ip2() != 255 && ip2() != h.ip2() )
-        return false;
-    if( h.ip3() != 255 && ip3() != h.ip3() )
-        return false;
-
-/* removed for endieness compatibility
-	for(int i=0; i<4; i++)
-		if (h.ipByte[i] != 255)
-			if (ipByte[i] != h.ipByte[i])
-				return false;
-*/
-	return true;
-}
 
 // -----------------------------------
 char *trimstr(char *s1)
@@ -276,6 +200,79 @@ char *stristr(const char *s1, const char *s2)
 	}
 	return NULL;
 }
+
+
+
+
+/////////////////////////////////////////////////////
+// class String
+
+// set from straight null terminated string
+void String::set(const char *p, TYPE t) 
+{
+	strncpy(data, p, MAX_LEN - 1);
+	data[MAX_LEN - 1] = 0;
+	type = t;
+}
+
+// from single word (end at whitespace)
+void String::setFromWord(const char *str)
+{
+	int i;
+	for(i = 0; i < MAX_LEN - 1; ++i) {
+		data[i] = *str++;
+		if ((data[i] == 0) || (data[i] == ' '))
+			break;
+	}
+	data[i] = 0;
+}
+
+// set from null terminated string, remove first/last chars
+void String::setUnquote(const char *p, TYPE t) 
+{
+	size_t slen = strlen(p);
+	if (slen > 2) {
+		if (slen >= MAX_LEN) slen = MAX_LEN;
+		strncpy(data,p+1,slen-2);
+		data[slen - 2] = 0;
+	} else {
+		clear();
+	}
+	type = t;
+}
+
+void String::clear() 
+{
+	data[0] = 0;
+	type = T_UNKNOWN;
+}
+
+/// 後ろにsを追加する
+void String::append(const char *s)
+{
+	if ((strlen(s)+strlen(data) < (MAX_LEN-1)))
+		strcat(data,s);
+}
+
+/// 後ろにcを追加する
+void String::append(char c)
+{
+	char tmp[2];
+	tmp[0]=c;
+	tmp[1]=0;
+	append(tmp);
+}
+
+/// 先頭にsを追加する
+void String::prepend(const char *s)
+{
+	::String tmp;
+	tmp.set(s);
+	tmp.append(data);
+	tmp.type = type;
+	*this = tmp;
+}
+
 // -----------------------------------
 bool String::isValidURL()
 {
@@ -739,41 +736,6 @@ void String::convertTo(TYPE t)
 		type = t;
 	}
 }
-// -----------------------------------
-void LogBuffer::write(const char *str, TYPE t)
-{
-	lock.on();
-
-	size_t len = strlen(str);
-	int cnt=0;
-	while (len)
-	{
-		size_t rlen = len;
-		if (rlen > (lineLen-1))
-			rlen = lineLen-1;
-
-		int i = currLine % maxLines;
-		int bp = i*lineLen;
-		strncpy(&buf[bp],str,rlen);
-		buf[bp+rlen] = 0;
-		if (cnt==0)
-		{
-			times[i] = sys->getTime();
-			types[i] = t;
-		}else
-		{
-			times[i] = 0;
-			types[i] = T_NONE;
-		}
-		currLine++;
-
-		str += rlen;
-		len -= rlen;
-		cnt++;
-	}
-
-	lock.off();
-}
 
 // -----------------------------------
 char *getCGIarg(const char *str, const char *arg)
@@ -822,168 +784,59 @@ bool hasCGIarg(char *str, char *arg)
 }
 
 
+
+//////////////////////////////////////////////////////////
+// class LogBuffer
+
 // ---------------------------
-void GnuID::encode(Host *h, const char *salt1, const char *salt2, unsigned char salt3)
+/// コンストラクタ
+LogBuffer::LogBuffer(int i, int l)
 {
-	int s1=0,s2=0;
-	for(int i=0; i<16; i++)
-	{
-		unsigned char ipb = id[i];
+	lineLen = l;
+	maxLines = i;
+	currLine = 0;
+	buf = new char[lineLen*maxLines];
+	times = new unsigned int [maxLines];
+	types = new TYPE [maxLines];
+}
 
-		// encode with IP address 
-		if (h)
-			ipb ^= ((unsigned char *)&h->ip)[i&3];
+// -----------------------------------
+/// strをログに書き込む
+void LogBuffer::write(const char *str, TYPE t)
+{
+	lock.on();
 
-		// add a bit of salt 
-		if (salt1)
-		{
-			if (salt1[s1])
-				ipb ^= salt1[s1++];
-			else
-				s1=0;
+	size_t len = strlen(str);
+	int cnt = 0;
+	while (len) {
+		size_t rlen = len;
+		if (rlen > (lineLen - 1))
+			rlen = lineLen - 1;
+
+		int i = currLine % maxLines;
+		int bp = i * lineLen;
+		strncpy(&buf[bp], str, rlen);
+		buf[bp + rlen] = 0;
+		if (cnt == 0) {
+			times[i] = sys->getTime();
+			types[i] = t;
+		} else {
+			times[i] = 0;
+			types[i] = T_NONE;
 		}
+		currLine++;
 
-		// and some more
-		if (salt2)
-		{
-			if (salt2[s2])
-				ipb ^= salt2[s2++];
-			else
-				s2=0;
-		}
-
-		// plus some pepper
-		ipb ^= salt3;
-
-		id[i] = ipb;
+		str += rlen;
+		len -= rlen;
+		cnt++;
 	}
 
-}
-// ---------------------------
-void GnuID::toStr(char *str)
-{
-
-	str[0] = 0;
-	for(int i=0; i<16; i++)
-	{
-		char tmp[8];
-		unsigned char ipb = id[i];
-
-		sprintf(tmp,"%02X",ipb);
-		strcat(str,tmp);
-	}
-
-}
-// ---------------------------
-void GnuID::fromStr(const char *str)
-{
-	clear();
-
-	if (strlen(str) < 32)
-		return;
-
-	char buf[8];
-
-	buf[2] = 0;
-
-	for(int i=0; i<16; i++)
-	{
-		buf[0] = str[i*2];
-		buf[1] = str[i*2+1];
-		id[i] = (unsigned char)strtoul(buf,NULL,16);
-	}
-
+	lock.off();
 }
 
-// ---------------------------
-void GnuID::generate(unsigned char flags)
-{
-	clear();
-
-	for(int i=0; i<16; i++)
-		id[i] = sys->rnd();
-
-	id[0] = flags;
-}
 
 // ---------------------------
-unsigned char GnuID::getFlags()
-{
-	return id[0];
-}
-
-// ---------------------------
-GnuIDList::GnuIDList(int max)
-:ids(new GnuID[max])
-{
-	maxID = max;
-	for(int i=0; i<maxID; i++)
-		ids[i].clear();
-}
-// ---------------------------
-GnuIDList::~GnuIDList()
-{
-	delete [] ids;
-}
-// ---------------------------
-bool GnuIDList::contains(GnuID &id)
-{
-	for(int i=0; i<maxID; i++)
-		if (ids[i].isSame(id))
-			return true;
-	return false;
-}
-// ---------------------------
-int GnuIDList::numUsed()
-{
-	int cnt=0;
-	for(int i=0; i<maxID; i++)
-		if (ids[i].storeTime)
-			cnt++;
-	return cnt;
-}
-// ---------------------------
-unsigned int GnuIDList::getOldest()
-{
-	unsigned int t=(unsigned int)-1;
-	for(int i=0; i<maxID; i++)
-		if (ids[i].storeTime)
-			if (ids[i].storeTime < t)
-				t = ids[i].storeTime;
-	return t;
-}
-// ---------------------------
-void GnuIDList::add(GnuID &id)
-{
-	unsigned int minTime = (unsigned int) -1;
-	int minIndex = 0;
-
-	// find same or oldest
-	for(int i=0; i<maxID; i++)
-	{
-		if (ids[i].isSame(id))
-		{
-			ids[i].storeTime = sys->getTime();
-			return;
-		}
-		if (ids[i].storeTime <= minTime)
-		{
-			minTime = ids[i].storeTime;
-			minIndex = i;
-		}
-	}
-
-	ids[minIndex] = id;
-	ids[minIndex].storeTime = sys->getTime();
-}
-// ---------------------------
-void GnuIDList::clear()
-{
-	for(int i=0; i<maxID; i++)
-		ids[i].clear();
-}
-	
-// ---------------------------
+/// HTMLとしてoutに書き出す
 void LogBuffer::dumpHTML(Stream &out)
 {
 	WLockBlock lb(&lock);
@@ -991,21 +844,17 @@ void LogBuffer::dumpHTML(Stream &out)
 
 	unsigned int nl = currLine;
 	unsigned int sp = 0;
-	if (nl > maxLines)
-	{
-		nl = maxLines-1;
-		sp = (currLine+1)%maxLines;
+	if (nl > maxLines) {
+		nl = maxLines - 1;
+		sp = (currLine + 1) % maxLines;
 	}
 
 	String tim,str;
-	if (nl)
-	{
-		for(unsigned int i=0; i<nl; i++)
-		{
-			unsigned int bp = sp*lineLen;
+	if (nl) {
+		for(unsigned int i = 0; i < nl; ++i) {
+			unsigned int bp = sp * lineLen;
 
-			if (types[sp])
-			{
+			if (types[sp]) {
 				tim.setFromTime(times[sp]);
 
 				out.writeString(tim.cstr());
@@ -1025,7 +874,6 @@ void LogBuffer::dumpHTML(Stream &out)
 	}
 
 	lb.off();
-
 }
 
 // ---------------------------

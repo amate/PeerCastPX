@@ -1,3 +1,5 @@
+// peercast.cpp
+
 #include "sys.h"
 #include "peercast.h"
 #include "channel.h"
@@ -120,8 +122,7 @@ void	APICALL PeercastInstance::quit()
 // --------------------------------------------------
 void	APICALL	PeercastInstance::setServerPort(int port)
 {
-	if (servMgr)
-	{
+	if (servMgr) {
 		servMgr->serverHost.port = port;
 		servMgr->restartServer = true;
 	}
@@ -138,7 +139,7 @@ int		APICALL	PeercastInstance::getServerPort()
 void	APICALL	PeercastInstance::setServerPassword(const char *pwd)
 {
 	if (servMgr)
-		strcpy(servMgr->password,pwd);
+		strcpy(servMgr->password, pwd);
 }
 // --------------------------------------------------
 const char *APICALL	PeercastInstance::getServerPassword()
@@ -149,15 +150,14 @@ const char *APICALL	PeercastInstance::getServerPassword()
 void	APICALL PeercastInstance::callLocalURL(const char *url)
 {
 	if (sys && servMgr)
-		sys->callLocalURL(url,servMgr->serverHost.port);
+		sys->callLocalURL(url, servMgr->serverHost.port);
 }
 
 
 // --------------------------------------------------
 void ADDLOG(const char *fmt,va_list ap,LogBuffer::TYPE type)
 {
-	if(sys)
-	{
+	if (sys) {
 		const int MAX_LINELEN = 1024;
 
 		char str[MAX_LINELEN+1];

@@ -25,11 +25,14 @@
 #include <windows.h>
 #include <shellapi.h>
 
+
 // C RunTime Header Files
 #include <stdlib.h>
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
+#define STRSAFE_NO_DEPRECATE
+#include <Strsafe.h>
 
 // STL
 #include <vector>

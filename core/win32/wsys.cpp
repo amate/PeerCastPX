@@ -42,16 +42,20 @@ WSys::WSys(HWND w)
 
 	rndSeed = rnd();
 }
+
 // ---------------------------------
+/// 1970 年 1 月 1 日午前 0 時以降の経過秒数を返します(小数点以下はミリセカンド)
 double WSys::getDTime()
 {
    struct _timeb timebuffer;
 
    _ftime( &timebuffer );
 
-   return (double)timebuffer.time+(((double)timebuffer.millitm)/1000);
+   return (double)timebuffer.time+(((double)timebuffer.millitm) / 1000);
 }
+
 // ---------------------------------
+/// 1970 年 1 月 1 日午前 0 時以降の経過秒数を返します
 unsigned int WSys::getTime()
 {
 	time_t ltime;
@@ -64,23 +68,10 @@ ClientSocket *WSys::createSocket()
 {
     return new WSAClientSocket();
 }
-// ---------------------------------
-void WSys::endThread(ThreadInfo *info)
-{
-}             
-// ---------------------------------
-void WSys::waitThread(ThreadInfo *info, int timeout)
-{
-	switch(WaitForSingleObject((void *)info->handle, timeout))
-	{
-      case WAIT_TIMEOUT:
-          throw TimeoutException();
-          break;
-	}
-}
-  
+
 
 // ---------------------------------
+/// スレッドを開始する
 bool	WSys::startThread(ThreadInfo *info)
 {
 	info->active = true;
@@ -94,7 +85,7 @@ bool	WSys::startThread(ThreadInfo *info)
 		return false;*/
 
 	typedef void (__cdecl *start_address)( void * );
-	info->handle = _beginthread((start_address)info->func, 0,info);
+	info->handle = _beginthread((start_address)info->func, 0, info);
 
     if(info->handle == -1) 
 		return false;
@@ -102,19 +93,26 @@ bool	WSys::startThread(ThreadInfo *info)
   return true;
 
 }
-// ---------------------------------
-void	WSys::sleep(int ms)
-{
-	Sleep(ms);
-}
 
 // ---------------------------------
-void WSys::appMsg(long msg, long arg)
+void WSys::endThread(ThreadInfo *info)
 {
-	//SendMessage(mainWindow,WM_USER,(WPARAM)msg,(LPARAM)arg);
+}   
+
+// ---------------------------------
+void WSys::waitThread(ThreadInfo *info, int timeout)
+{
+	switch (WaitForSingleObject((void *)info->handle, timeout))
+	{
+      case WAIT_TIMEOUT:
+          throw TimeoutException();
+          break;
+	}
 }
+  
 
 // --------------------------------------------------
+/// ローカルのURLを開く
 void WSys::callLocalURL(const char *str,int port)
 {
 	char cmd[512];
@@ -123,6 +121,7 @@ void WSys::callLocalURL(const char *str,int port)
 }
 
 // ---------------------------------
+/// urlを開く
 void WSys::getURL(const char *url)
 {
 	//if (mainWindow)
@@ -132,8 +131,12 @@ void WSys::getURL(const char *url)
 // ---------------------------------
 void WSys::exit()
 {
+#ifdef _DEBUG
+	if (::IsWindow(mainWindow) == FALSE)
+		MessageBoxA(NULL, "exit() 失敗", NULL, 0);
+#endif
 	//if (mainWindow)
-		PostMessage(mainWindow,WM_CLOSE,0,0);
+		PostMessage(mainWindow, WM_CLOSE, 0, 0);
 	//else
 	//	::exit(0);
 }

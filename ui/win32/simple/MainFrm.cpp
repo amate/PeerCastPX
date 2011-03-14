@@ -15,19 +15,178 @@
 #include "stats.h"
 #include "version2.h"
 
+#if defined(NTDDI_VERSION) && (NTDDI_VERSION >= NTDDI_LONGHORN)
+  #include <vssym32.h>
+#else
+  #include <tmschema.h>
+#endif
+
 #include <uxtheme.h>	// for XP
-//#pragma comment(lib, "uxtheme.lib")
+#pragma comment(lib, "uxtheme.lib")
 
 #include <dwmapi.h>		// for Vista
-//#pragma comment(lib, "dwmapi.lib")
+#pragma comment(lib, "dwmapi.lib")
 
 /// とりあえず定義はSimple.cppにある
 extern ChanInfo chanInfo;
 extern bool		chanInfoIsRelayed;
 extern String	iniFileName;	// ?
-extern HICON	hIconAntenna[5];
-extern NOTIFYICONDATA trayIcon;
+extern HWND		guiWnd;
 WINDOWPLACEMENT winPlace;
+
+
+
+///////////////////////////////////////
+// CTrayIcon
+
+CTrayIcon*	CTrayIcon::s_pThis = NULL;
+
+/// コンストラクタ
+CTrayIcon::CTrayIcon() : m_hWndNotify(NULL), m_nNowQuality(-1)
+{
+	s_pThis = this;
+
+	::SecureZeroMemory(&m_trayIcon, sizeof m_trayIcon);
+	m_trayIcon.cbSize = sizeof (m_trayIcon);
+
+	WM_TASKBARCREATED = RegisterWindowMessage(_T("TaskbarCreated"));
+}
+
+/// デストラクタ
+CTrayIcon::~CTrayIcon()
+{
+	s_pThis = NULL;
+}
+
+/// エクスプローラーが再起動したのでトレイアイコンを作り直す
+LRESULT CTrayIcon::OnTaskbarCreated(UINT uMsg, WPARAM wParam, LPARAM lParam)
+{ 
+	AddTrayIcon(m_hWndNotify);
+	return 0;
+}
+
+/// タスクトレイにアイコンを登録する
+void	CTrayIcon::AddTrayIcon(HWND hWnd)
+{
+	m_hWndNotify = hWnd;
+
+	// アイコンを読み込む
+	m_IconAntenna[0].LoadIcon(IDI_ANTENNA0);
+	m_IconAntenna[1].LoadIcon(IDI_ANTENNA1);
+	m_IconAntenna[2].LoadIcon(IDI_ANTENNA2);
+	m_IconAntenna[3].LoadIcon(IDI_ANTENNA3);
+
+	m_IconAntenna[4].LoadIcon(IDI_SMALL);
+
+    m_trayIcon.hWnd = hWnd;
+    m_trayIcon.uID = 100;
+    m_trayIcon.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+    m_trayIcon.uCallbackMessage = WM_TRAYICON;
+    m_trayIcon.hIcon = m_IconAntenna[4];
+    StringCchCopy(m_trayIcon.szTip, 64, _T("PeerCast"));
+
+
+	/* タスクトレイにアイコンを登録する */
+    ::Shell_NotifyIcon(NIM_ADD, &m_trayIcon);
+}
+
+/// タスクトレイからアイコンを削除
+void	CTrayIcon::RemoveTrayIcon()
+{
+	/* タスクトレイからアイコンを削除 */
+    ::Shell_NotifyIcon(NIM_DELETE, &m_trayIcon);
+}
+
+/// タスクトレイアイコンを変更する
+void	CTrayIcon::ModifyIcon(int nQuality /*= 4*/)	// 4はデフォルトアイコン
+{
+	ATLASSERT(0 <= nQuality && nQuality <= 4);
+	if (m_nNowQuality != nQuality) {
+		m_trayIcon.uFlags = NIF_ICON;
+		m_trayIcon.hIcon = m_IconAntenna[nQuality];
+		::Shell_NotifyIcon(NIM_MODIFY, &m_trayIcon);
+
+		m_nNowQuality = nQuality;
+	}
+}
+
+/// ツールチップを表示する
+void	CTrayIcon::ChannelPopup(LPCTSTR title, LPCTSTR msg, bool bBallonTip /*= true*/)
+{
+	ATLASSERT(title);
+	ATLASSERT(msg);
+	if (title[0] == _T('\0'))
+		return;
+
+	CString strboth;
+	strboth.Format(_T(" (%s)"), title);
+
+	m_trayIcon.uFlags = NIF_ICON | NIF_TIP;
+	StringCchCopy(m_trayIcon.szTip, 128, strboth);
+	//trayIcon.szTip[sizeof(trayIcon.szTip)-1]=0;
+
+	if (bBallonTip) m_trayIcon.uFlags |= NIF_INFO;
+	m_trayIcon.uTimeout = 10 * 1000;	// 10秒
+	StringCchCopy(m_trayIcon.szInfoTitle, 64, title);
+	StringCchCopy(m_trayIcon.szInfo, 256, msg);
+	
+	::Shell_NotifyIcon(NIM_MODIFY, &m_trayIcon);
+}
+
+/// ツールチップを消す
+void	CTrayIcon::ClearChannelPopup()
+{
+	m_trayIcon.uFlags = NIF_ICON | NIF_INFO;
+	m_trayIcon.uTimeout = 10 * 1000;
+    m_trayIcon.szInfo[0] = _T('\0');
+	m_trayIcon.szInfoTitle[0] = _T('\0');
+	::Shell_NotifyIcon(NIM_MODIFY, &m_trayIcon);
+}
+
+
+
+typedef struct tagADDLOGINFO {
+	String strMessage;
+	int id;
+	bool sel;
+	void *data;
+	LogBuffer::TYPE type;
+} ADDLOGINFO, *LPADDLOGINFO;
+
+void ADDLOG(const char *str, int id, bool sel, void *data, LogBuffer::TYPE type) //JP-MOD: Thread safe fix
+{
+	HWND hwnd = guiWnd;
+
+	String sjis; //JP-Patch
+	sjis = str;
+	sjis.convertTo(String::T_SJIS);
+
+	if (type != LogBuffer::T_NONE)
+	{
+#if _DEBUG
+		::OutputDebugString(sjis.cstr());
+		::OutputDebugString("\n");
+#endif
+	}
+
+	if(::IsWindow(hwnd))
+	{
+		LPADDLOGINFO pInfo = new ADDLOGINFO;
+
+		pInfo->strMessage = sjis;
+		pInfo->id = id;
+		pInfo->sel = sel;
+		pInfo->data = data;
+		pInfo->type = type;
+
+		//他スレッドへのSendMessageはデッドロックを引き起こす場合があり危険なので
+		//非同期メッセージ関数を使用する(メモリの解放は受け取り側で行う)
+		if(!::SendNotifyMessage(hwnd, WM_ADDLOG, (WPARAM)pInfo, 0))
+			delete pInfo;
+	}
+}
+
+
 
 namespace {
 
@@ -115,7 +274,7 @@ namespace {
 		unsigned int lastSkipTime;
 		unsigned int lastSkipCount;
 	};
-
+#if 0
 	typedef struct tagADDLOGINFO {
 		String strMessage;
 		int id;
@@ -123,7 +282,7 @@ namespace {
 		void *data;
 		LogBuffer::TYPE type;
 	} ADDLOGINFO, *LPADDLOGINFO;
-
+#endif
 	// グローバル変数
 	ThreadInfo guiThread;
 	bool sleep_skip = false;
@@ -315,17 +474,15 @@ namespace {
 		//	bool shownChannels = false;
 		//	thread->lock();
 
-		while (thread->active)
-		{
+		while (thread->active) {
 			int diff = 0;
 			bool changed = false; //JP-MOD
 
-			LRESULT sel = ListView_GetNextItem(::GetDlgItem(hwnd, IDC_LIST2), -1, LVNI_FOCUSED | LVNI_SELECTED); //JP-MOD
+			LRESULT sel = ListView_GetNextItem(::GetDlgItem(hwnd, IDC_CONNECTLIST), -1, LVNI_FOCUSED | LVNI_SELECTED); //JP-MOD
 
 			ServentData *sd = servent_top;
-			while(sd){
+			for (; sd; sd = sd->next) {
 				sd->flg = false;
-				sd = sd->next;
 			}
 
 			{ //JP-MOD
@@ -337,9 +494,7 @@ namespace {
 
 				WSingleLock lock(&servMgr->lock);
 				Servent *s = servMgr->servents;
-
-				while(s){
-					Servent *next;
+				for (; s; s = s->next) {
 					bool foundFlg = false;
 					bool infoFlg = false;
 					bool relay = true;
@@ -351,22 +506,18 @@ namespace {
 					char ver_ex_prefix[2] = {0};
 					int ver_ex_number = 0;
 
-					next = s->next;
-
 					// for PCRaw (connection list) start
-					if(show_chanID.isSet() && !show_chanID.isSame(s->chanID))
+					if (show_chanID.isSet() && !show_chanID.isSame(s->chanID))
 					{
-						s = next;
 						continue;
 					}
 					// for PCRaw (connection list) end
 
-					//JP-MOD
+					//JP-MOD	接続リストを簡易表示にするがオンならスキップ
 					if (servMgr->guiSimpleConnectionList && (
 						((s->type == Servent::T_DIRECT) && (s->status == Servent::S_CONNECTED)) ||
 						((s->type == Servent::T_SERVER) && (s->status == Servent::S_LISTENING))
 						)) {
-							s = next;
 							continue;
 					}
 
@@ -377,7 +528,7 @@ namespace {
 
 						if (chl){
 							ChanHit *hit = chl->hit;
-							while(hit){
+							for (; hit; hit = hit->next){
 								if (hit->servent_id == s->servent_id){
 									if ((hit->numHops == 1)/* && (hit->host.ip == s->getHost().ip)*/){
 										infoFlg = true;
@@ -392,7 +543,6 @@ namespace {
 									totalRelays += hit->numRelays;
 									totalListeners += hit->numListeners;
 								}
-								hit = hit->next;
 							}
 						}
 					}
@@ -401,7 +551,7 @@ namespace {
 						WSingleLock lock(&sd_lock); //JP-MOD: new lock
 						ServentData *sd = servent_top;
 
-						while(sd){
+						for (; sd; sd = sd->next){
 							if (sd->servent_id == s->servent_id){
 								foundFlg = true;
 								if (s->thread.finish) break;
@@ -429,8 +579,8 @@ namespace {
 								sd->ver_ex_number = ver_ex_number;
 								break;
 							}
-							sd = sd->next;
 						}
+
 						if (!foundFlg && (s->type != Servent::T_NONE) && !s->thread.finish){
 							ServentData *newData = new ServentData();
 							newData->next = servent_top;
@@ -463,7 +613,6 @@ namespace {
 							changed = true;
 						}
 					}
-					s = next;
 				}
 			}
 
@@ -474,10 +623,10 @@ namespace {
 					WSingleLock lock(&sd_lock);
 					ServentData *sd = servent_top;
 					ServentData *prev = NULL;
-					while(sd){
-						if (!sd->flg || (sd->type == Servent::T_NONE)){
+					while (sd) {
+						if (!sd->flg || (sd->type == Servent::T_NONE)) {
 							ServentData *next = sd->next;
-							if (!prev){
+							if (!prev) {
 								servent_top = next;
 							} else {
 								prev->next = next;
@@ -496,37 +645,30 @@ namespace {
 					}
 				}
 
-				if((sel >= 0) && (diff != 0))
-					ListView_SetItemState(::GetDlgItem(hwnd, IDC_LIST2), sel+diff, LVNI_FOCUSED | LVIS_SELECTED, LVNI_FOCUSED | LVIS_SELECTED);
-				ListView_SetItemCountEx(::GetDlgItem(hwnd, IDC_LIST2), idx, LVSICF_NOSCROLL);
+				if ((sel >= 0) && (diff != 0))
+					ListView_SetItemState(::GetDlgItem(hwnd, IDC_CONNECTLIST), sel + diff, LVNI_FOCUSED | LVIS_SELECTED, LVNI_FOCUSED | LVIS_SELECTED);
+				ListView_SetItemCountEx(::GetDlgItem(hwnd, IDC_CONNECTLIST), idx, LVSICF_NOSCROLL);
 			}
 
 			{
 				ListData *ld = list_top;
-				while(ld){
+				for (; ld; ld = ld->next) {
 					ld->flg = false;
-					ld = ld->next;
 				}
 
 				{ //JP-MOD
 					WSingleLock lock(&chanMgr->channellock); //JP-MOD: new lock
 					Channel *c = chanMgr->channel;
-
-					while (c)
-					{
-						Channel *next;
+					for (; c; c = c->next) {
 						bool foundFlg = false;
 						String sjis;
 						sjis = c->getName();
 						sjis.convertTo(String::T_SJIS);
 
-						next = c->next;
-
 						{
 							WSingleLock lock(&ld_lock); //JP-MOD: new lock
 							ListData *ld = list_top;
-
-							while(ld){
+							for (; ld; ld = ld->next){
 								if (ld->channel_id == c->channel_id){
 									foundFlg = true;
 									if (c->thread.finish) break;
@@ -549,7 +691,6 @@ namespace {
 									ld->bTracker = c->sourceHost.tracker;
 									break;
 								}
-								ld = ld->next;
 							}
 							if (!foundFlg && !c->thread.finish){
 								ListData *newData = new ListData();
@@ -577,7 +718,6 @@ namespace {
 								changed = true;
 							}
 						}
-						c = next;
 					}
 				}
 
@@ -607,14 +747,15 @@ namespace {
 							}
 						}
 					}
-					ListView_SetItemCountEx(::GetDlgItem(hwnd, IDC_LIST3), idx, LVSICF_NOSCROLL);
+					ListView_SetItemCountEx(::GetDlgItem(hwnd, IDC_CHANNELLIST), idx, LVSICF_NOSCROLL);
 				}
 
 				if (changed &&
 					(servMgr->guiConnListDisplays < 0 ||
-					servMgr->guiChanListDisplays < 0)
-					)
+					servMgr->guiChanListDisplays < 0) ) 
+				{
 					::PostMessage(hwnd, WM_REFRESH, 0, 0);
+				}
 			}
 	#if 0
 			bool update = ((sys->getTime() - chanMgr->lastHit) < 3)||(!shownChannels);
@@ -668,17 +809,15 @@ namespace {
 				}
 			}
 	#endif
-			char buf[64]; //JP-MOD
-			if(servMgr->guiTitleModify && pp_formatTitle(buf, sizeof(buf), ::IsIconic(hwnd) != 0) > 0)
+			char buf[64]; //JP-MOD	表示を動的に変更するがオンのとき
+			if (servMgr->guiTitleModify && pp_formatTitle(buf, sizeof(buf), ::IsIconic(hwnd) != 0) > 0)
 				::SetWindowText(hwnd, buf);
 
 			// sleep for 1 second .. check every 1/10th for shutdown
-			for(int i=0; i<10; i++)
-			{
-				if(sleep_skip)	// for PCRaw (connection list)
-				{
+			for (int i=0; i<10; i++) {
+				if (sleep_skip) {	// for PCRaw (connection list)
 					sleep_skip = false;
-					break;
+					break;	// スリープを抜ける
 				}
 
 				if (!thread->active)
@@ -686,10 +825,12 @@ namespace {
 				sys->sleep(100);
 			}
 		}
+		
+		
+		// ループを抜けたので後始末?
 
 		ListData *ld = list_top;
-
-		while(ld){
+		while (ld) {
 			ListData *next;
 			next = ld->next;
 
@@ -700,8 +841,7 @@ namespace {
 		list_top = NULL;
 
 		ServentData *sd = servent_top;
-
-		while(sd){
+		while (sd) {
 			ServentData *next;
 			next = sd->next;
 
@@ -768,7 +908,7 @@ namespace {
 			(servMgr->allowServer1&Servent::ALLOW_HTML)?(servMgr->serverHost.port):(servMgr->serverHost.port+1));
 	}
 
-
+	/// [Info]ダイアログ
 	class CChannelInfoDialog : public CDialogImpl<CChannelInfoDialog>
 	{
 	public:
@@ -878,6 +1018,7 @@ namespace {
 		void OnClose() { EndDialog(0); }
 	};
 
+	/// バージョン情報ダイアログ
 	class CAboutDialog : public CDialogImpl<CAboutDialog>
 	{
 	public:
@@ -915,7 +1056,8 @@ namespace {
 
 
 /// コンストラクタ
-CMainFrame::CMainFrame() : m_wndMessage(_T("PeerCastTaskTrayNotifyWindow"),this, 1)
+CMainFrame::CMainFrame() : 
+	m_wndMessage(_T("PeerCastTaskTrayNotifyWindow"),this, 1)
 { }
 
 
@@ -1030,6 +1172,13 @@ int		CMainFrame::OnCreate(LPCREATESTRUCT /*lpCreateStruct*/)
 	extern HWND guiWnd;
 	guiWnd = m_hWnd;
 
+	/* タスクトレイにアイコンを登録 */
+	CWindow wnd;
+	wnd.Create(_T("Button"), NULL, 0, 0, WS_POPUP);
+	ATLASSERT(wnd.IsWindow());
+	m_wndMessage.SubclassWindow(wnd);	
+	m_TrayIcon.AddTrayIcon(m_wndMessage);
+
 	// メッセージ フィルターおよび画面更新用のオブジェクト登録
 	CMessageLoop* pLoop = _Module.GetMessageLoop();
 	ATLASSERT(pLoop != NULL);
@@ -1058,6 +1207,10 @@ void	CMainFrame::OnDestroy()
 	SetMsgHandled(FALSE);
 
 	guiThread.active = false;
+
+	/* タスクトレイからアイコンを削除する */
+	m_TrayIcon.RemoveTrayIcon();
+	m_wndMessage.UnsubclassWindow();
 
 	// メッセージ フィルターおよび画面更新用のオブジェクト登録解除
 	CMessageLoop* pLoop = _Module.GetMessageLoop();
@@ -1409,23 +1562,23 @@ LRESULT CMainFrame::OnDropDownLogMenu(LPNMHDR pnmh)
 	return TBDDRET_NODEFAULT;
 }
 
+// ログリストにログを追加する
 LRESULT CMainFrame::OnAddLog(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	LPADDLOGINFO pInfo = (LPADDLOGINFO)wParam;
 	if(pInfo == NULL)
 		return 0;
 
-	LRESULT num = ::SendDlgItemMessage(m_hWnd, pInfo->id, LB_GETCOUNT, 0, 0);
-	if (num > 100) {
-		::SendDlgItemMessage(m_hWnd, pInfo->id, LB_DELETESTRING, 0, 0);
+	int num = m_LogList.GetCount();
+	if (num > 100) {	// ログは100以上追加しない
+		m_LogList.DeleteString(0);
 		num--;
 	}
 
-	LRESULT idx = ::SendDlgItemMessage(m_hWnd, pInfo->id, LB_ADDSTRING, 0, (LPARAM)(LPSTR)pInfo->strMessage.cstr());
-	::SendDlgItemMessage(m_hWnd, pInfo->id, LB_SETITEMDATA, idx, (LPARAM)pInfo->data);
-
+	int idx = m_LogList.AddString((LPSTR)pInfo->strMessage.cstr());
+	m_LogList.SetItemDataPtr(idx, pInfo->data);
 	if (pInfo->sel)
-		::SendDlgItemMessage(m_hWnd, pInfo->id, LB_SETCURSEL, num, 0);
+		m_LogList.SetCurSel(num);
 
 	delete pInfo;
 	return 0;
@@ -1457,7 +1610,7 @@ LRESULT CMainFrame::OnAntenna(UINT uMsg, WPARAM wParam, LPARAM lParam)
 void	CMainFrame::OnTimer(UINT_PTR nIDEvent)
 {
 	if (nIDEvent == 1) {
-		unsigned char quality = 4;
+		int quality = 4;
 
 		if (servMgr->guiAntennaNotifyIcon) {
 			for (Channel *c = chanMgr->channel; c != NULL; c = c->next) {
@@ -1473,11 +1626,7 @@ void	CMainFrame::OnTimer(UINT_PTR nIDEvent)
 		if (quality == 4)
 			KillTimer(1);
 
-		if (trayIcon.hIcon != hIconAntenna[quality]) {
-			trayIcon.uFlags = NIF_ICON;
-			trayIcon.hIcon = hIconAntenna[quality];
-			Shell_NotifyIcon(NIM_MODIFY, (NOTIFYICONDATA*)&trayIcon);
-		}
+		m_TrayIcon.ModifyIcon(quality);
 	}
 }
 
@@ -1843,9 +1992,9 @@ LRESULT CMainFrame::OnCustomDraw(int idCtrl, LPNMHDR pnmh, BOOL& bHandled)
 
 DWORD	CMainFrame::OnPrePaint(int nID, LPNMCUSTOMDRAW lpnmcd)
 {
-	if (lpnmcd->hdr.idFrom == IDC_LIST3) {
+	if (lpnmcd->hdr.idFrom == IDC_CHANNELLIST) {
 		return CDRF_NOTIFYITEMDRAW;	// チャンネルリスト
-	} else if (lpnmcd->hdr.idFrom == IDC_LIST2) {
+	} else if (lpnmcd->hdr.idFrom == IDC_CONNECTLIST) {
 		return CDRF_NOTIFYITEMDRAW;	// 接続リスト
 	}
 
@@ -1854,13 +2003,13 @@ DWORD	CMainFrame::OnPrePaint(int nID, LPNMCUSTOMDRAW lpnmcd)
 
 DWORD	CMainFrame::OnItemPrePaint(int nID, LPNMCUSTOMDRAW lpnmcd)
 {
-	if (lpnmcd->hdr.idFrom == IDC_LIST3) {			// チャンネルリスト
+	if (lpnmcd->hdr.idFrom == IDC_CHANNELLIST) {			// チャンネルリスト
 		if (servMgr->getFirewall() == ServMgr::FW_ON) {
 			LPNMLVCUSTOMDRAW(lpnmcd)->clrText = RGB(255, 0, 0);
 			return CDRF_DODEFAULT;
 		}
 		return CDRF_NOTIFYSUBITEMDRAW;
-	} else if (lpnmcd->hdr.idFrom == IDC_LIST2) {	// 接続リスト
+	} else if (lpnmcd->hdr.idFrom == IDC_CONNECTLIST) {	// 接続リスト
 		WSingleLock lock(&sd_lock);
 		ServentData *sd = getServentData(LPNMLVCUSTOMDRAW(lpnmcd)->nmcd.dwItemSpec);
 
@@ -1874,7 +2023,7 @@ DWORD	CMainFrame::OnItemPrePaint(int nID, LPNMCUSTOMDRAW lpnmcd)
 
 DWORD	CMainFrame::OnSubItemPrePaint(int nID, LPNMCUSTOMDRAW lpnmcd)
 {
-	if (lpnmcd->hdr.idFrom == IDC_LIST3) {
+	if (lpnmcd->hdr.idFrom == IDC_CHANNELLIST) {
 		LPNMLVCUSTOMDRAW	plvcmd = (LPNMLVCUSTOMDRAW)lpnmcd;
 		plvcmd->clrText = ::GetSysColor(COLOR_WINDOWTEXT);
 
@@ -1903,7 +2052,7 @@ DWORD	CMainFrame::OnSubItemPrePaint(int nID, LPNMCUSTOMDRAW lpnmcd)
 
 DWORD	CMainFrame::OnSubItemPostPaint(int nID, LPNMCUSTOMDRAW lpnmcd)
 {
-	if (lpnmcd->hdr.idFrom == IDC_LIST3) {
+	if (lpnmcd->hdr.idFrom == IDC_CHANNELLIST) {
 		LPNMLVCUSTOMDRAW	plvcmd = (LPNMLVCUSTOMDRAW)lpnmcd;
 		CRect rc;
 		m_ListChan.GetSubItemRect(plvcmd->nmcd.dwItemSpec, plvcmd->iSubItem, LVIR_LABEL, &rc);
@@ -1948,7 +2097,7 @@ DWORD	CMainFrame::OnSubItemPostPaint(int nID, LPNMCUSTOMDRAW lpnmcd)
 				theme.OpenThemeData(m_ListChan, L"Button");
 				if (theme.IsThemeNull() == false) {
 					int iStateID = (ld->stayConnected) ? CBS_CHECKEDNORMAL : CBS_UNCHECKEDNORMAL;
-					if(plvcmd->nmcd.uItemState & CDIS_HOT)
+					if (plvcmd->nmcd.uItemState & CDIS_HOT)
 						++iStateID;
 
 					theme.DrawThemeBackground(plvcmd->nmcd.hdc, BP_CHECKBOX, iStateID, &rc, &rc);
@@ -1995,16 +2144,16 @@ void	CMainFrame::_CreateControls()
 	m_ListChan.Create(m_hWnd, 0, _T("チャンネルリストビュー"),  
 		WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP | WS_VISIBLE |
 		LVS_AUTOARRANGE | LVS_NOSORTHEADER | LVS_OWNERDATA | LVS_REPORT | LVS_SHAREIMAGELISTS | LVS_SHOWSELALWAYS);
-	m_ListChan.SetDlgCtrlID(IDC_LIST3);
+	m_ListChan.SetDlgCtrlID(IDC_CHANNELLIST);
 
 	m_ListConnect.Create(m_hWnd, 0, _T("コネクションリストビュー"), 
 		WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_TABSTOP | WS_VISIBLE |
 		LVS_AUTOARRANGE | LVS_NOSORTHEADER | LVS_OWNERDATA | LVS_REPORT | LVS_SHAREIMAGELISTS | LVS_SINGLESEL);
-	m_ListConnect.SetDlgCtrlID(IDC_LIST2);
+	m_ListConnect.SetDlgCtrlID(IDC_CONNECTLIST);
 
 	m_LogList.Create(m_hWnd, 0, _T("ログリスト"), 
 		WS_CHILD | WS_TABSTOP | WS_VISIBLE | WS_VSCROLL | LBS_NOINTEGRALHEIGHT | WS_BORDER);
-	m_LogList.SetDlgCtrlID(IDC_LIST1);
+	m_LogList.SetDlgCtrlID(IDC_LOGLIST);
 }
 
 /// リストビューを初期化

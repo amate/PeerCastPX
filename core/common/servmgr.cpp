@@ -29,7 +29,10 @@
 #include "atom.h"
 #include "version2.h"
 
-ThreadInfo ServMgr::serverThread,ServMgr::idleThread;
+// -----------------------------------
+// 静的変数
+ThreadInfo ServMgr::serverThread;
+ThreadInfo ServMgr::idleThread;
 
 // -----------------------------------
 ServMgr::ServMgr()
@@ -548,28 +551,27 @@ Servent *ServMgr::findServentByServentID(int id)
 }
 
 // -----------------------------------
+/// サーバーを割り当てる
 Servent *ServMgr::allocServent()
 {
 	lock.on();
 
 	Servent *s = servents;
-	while (s)
-	{
+	for (; s; s = s->next) {
 		if (s->status == Servent::S_FREE)
 			break;
-		s=s->next;
 	}
 
-	if (!s)
-	{
-		s = new Servent(++serventNum);
+	if (s == nullptr) {
+		serventNum++;
+		s = new Servent(serventNum);
 		s->next = servents;
 		servents = s;
 
-		LOG_DEBUG("allocated servent %d",serventNum);
-	}else
-		LOG_DEBUG("reused servent %d",s->serventIndex);
-
+		LOG_DEBUG("allocated servent %d", serventNum);
+	} else {
+		LOG_DEBUG("reused servent %d", s->serventIndex);
+	}
 
 	s->reset();
 
@@ -1245,6 +1247,7 @@ void readFilterSettings(IniFile &iniFile, ServFilter &sv)
 
 }
 // --------------------------------------------------
+/// 設定を読み込む
 void ServMgr::loadSettings(const char *fn)
 {
 	IniFile iniFile;
@@ -1862,11 +1865,10 @@ void ServMgr::procConnectArgs(char *str,ChanInfo &info)
 }
 
 // --------------------------------------------------
+/// サーバーを開始
 bool ServMgr::start()
 {
 	char idStr[64];
-
-
 	const char *priv;
 #if PRIVATE_BROADCASTER
 	priv = "(private)";
@@ -1874,9 +1876,9 @@ bool ServMgr::start()
 	priv = "";
 #endif
 #ifdef VERSION_EX
-	LOG_DEBUG("Peercast %s, %s %s",PCX_VERSTRING_EX,peercastApp->getClientTypeOS(),priv);
+	LOG_DEBUG("Peercast %s, %s %s", PCX_VERSTRING_EX, peercastApp->getClientTypeOS(), priv);
 #else
-	LOG_DEBUG("Peercast %s, %s %s",PCX_VERSTRING,peercastApp->getClientTypeOS(),priv);
+	LOG_DEBUG("Peercast %s, %s %s", PCX_VERSTRING, peercastApp->getClientTypeOS(), priv);
 #endif
 
 	sessionID.toStr(idStr);
@@ -1885,7 +1887,6 @@ bool ServMgr::start()
 	chanMgr->broadcastID.toStr(idStr);
 	LOG_DEBUG("BroadcastID: %s",idStr);
 	checkForceIP();
-
 
 	serverThread.func = ServMgr::serverProc;
 	if (!sys->startThread(&serverThread))
@@ -2195,14 +2196,11 @@ int ServMgr::serverProc(ThreadInfo *thread)
 	Servent *serv = servMgr->allocServent();
 	Servent *serv2 = servMgr->allocServent();
 
-	unsigned int lastLookupTime=0;
+	unsigned int lastLookupTime = 0;
 
+	while (thread->active) {
 
-	while (thread->active)
-	{
-
-		if (servMgr->restartServer)
-		{
+		if (servMgr->restartServer) {
 			serv->abort();		// force close
 			serv2->abort();		// force close
 			servMgr->quit();
@@ -2210,8 +2208,7 @@ int ServMgr::serverProc(ThreadInfo *thread)
 			servMgr->restartServer = false;
 		}
 
-		if (servMgr->autoServe)
-		{
+		if (servMgr->autoServe) {
 			serv->allow = servMgr->allowServer1;
 			serv2->allow = servMgr->allowServer2;
 
@@ -2241,7 +2238,7 @@ int ServMgr::serverProc(ThreadInfo *thread)
 
 				}
 			}
-		}else{
+		} else {
 			// stop server
 			serv->abort();		// force close
 			serv2->abort();		// force close
@@ -2259,7 +2256,6 @@ int ServMgr::serverProc(ThreadInfo *thread)
 		}
 			
 		sys->sleepIdle();
-
 	}
 
 	sys->endThread(thread);

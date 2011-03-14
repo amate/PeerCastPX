@@ -35,12 +35,12 @@
 #define IDB_DJ                          141
 #define IDM_CHANLIST					142
 #define IDM_CONNECTLIST					143
-#define IDC_LIST1                       1000
+#define IDC_LOGLIST                     1000
 #define IDC_BUTTON7                     1001
 #define IDC_ABOUTVER                    1002
 #define IDC_CHECK1                      1003
 #define IDC_EDIT1                       1004
-#define IDC_LIST2                       1005
+#define IDC_CONNECTLIST                 1005
 #define IDC_EDIT_PLAYING                1005
 #define IDC_COMBO1                      1006
 #define IDC_EDIT_MESSAGE                1006
@@ -50,7 +50,7 @@
 #define IDC_EDIT_DESC                   1008
 #define IDC_DETAILS                     1009
 #define IDC_MAXRELAYS                   1009
-#define IDC_LIST3                       1010
+#define IDC_CHANNELLIST                 1010
 #define IDC_PLAY                        1010
 #define IDC_CONTACT                     1011
 #define IDC_EDIT2                       1012
