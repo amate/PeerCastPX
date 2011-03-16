@@ -2,3 +2,5 @@
 PeerCastPX
 
 PeerCastPP版の改造バージョンです
+
+コンパイルにはWTLが必要なので入れてください
