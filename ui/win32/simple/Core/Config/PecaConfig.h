@@ -1,0 +1,42 @@
+/*!	@file	PecaConfig.h
+	@brief	PeercastÇÃê›íË
+
+*/
+
+#pragma once
+
+
+
+class CPecaConfig
+{
+public:
+
+
+
+
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

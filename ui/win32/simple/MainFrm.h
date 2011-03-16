@@ -75,9 +75,10 @@ public:
 
 	// Message map
 	BEGIN_MSG_MAP_EX( CListViewChan )
-
+		MSG_WM_MBUTTONDOWN( OnMButtonDown )
 	END_MSG_MAP()
 
+	void	OnMButtonDown(UINT nFlags, CPoint point);
 private:
 
 };

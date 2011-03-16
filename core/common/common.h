@@ -149,7 +149,7 @@ public:
 
 	void	IPtoStr(char *str);
 
-	void	toStr(char *str);
+	void	toStr(char *str) const;
 
 	void	fromStrIP(const char *,int);
 	void	fromStrName(const char *,int);
@@ -167,10 +167,10 @@ public:
 	unsigned int value;
 
 private:
-    unsigned int ip3() { return (ip >> 24); }
-    unsigned int ip2() { return (ip >> 16) & 0xff; }
-    unsigned int ip1() { return (ip >>  8) & 0xff; }
-    unsigned int ip0() {  return ip & 0xff; }
+    unsigned int ip3() const { return (ip >> 24); }
+    unsigned int ip2() const { return (ip >> 16) & 0xff; }
+    unsigned int ip1() const { return (ip >>  8) & 0xff; }
+    unsigned int ip0() const { return ip & 0xff; }
 };
 
 

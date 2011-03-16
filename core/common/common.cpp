@@ -303,7 +303,7 @@ void	Host::IPtoStr(char *str)
 }
 
 // ---------------------------
-void	Host::toStr(char *str)
+void	Host::toStr(char *str) const
 {
 	sprintf(str,"%d.%d.%d.%d:%d", ip3(), ip2(), ip1(), ip0(), port);
 }

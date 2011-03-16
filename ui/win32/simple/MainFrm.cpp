@@ -1055,6 +1055,23 @@ namespace {
 }
 
 
+//////////////////////////////////////////////////
+// class CListViewChan
+
+/// チャンネルリストがミドルクリックされた
+void	CListViewChan::OnMButtonDown(UINT nFlags, CPoint point)
+{
+	UINT uFlags;
+	int nIndex = HitTest(point, &uFlags);
+	if (nIndex != -1) {	// コンタクトURLを開く
+		GetTopLevelWindow().SendMessage(WM_COMMAND, ID_URL_CMD + nIndex);
+	}
+}
+
+
+//////////////////////////////////////////////////
+// class CMainFrame
+
 /// コンストラクタ
 CMainFrame::CMainFrame() : 
 	m_wndMessage(_T("PeerCastTaskTrayNotifyWindow"),this, 1)

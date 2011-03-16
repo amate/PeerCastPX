@@ -2212,9 +2212,7 @@ int ServMgr::serverProc(ThreadInfo *thread)
 			serv->allow = servMgr->allowServer1;
 			serv2->allow = servMgr->allowServer2;
 
-
-			if ((!serv->sock) || (!serv2->sock))
-			{
+			if ((!serv->sock) || (!serv2->sock)) {
 				LOG_DEBUG("Starting servers");
 //				servMgr->forceLookup = true;
 

@@ -33,6 +33,7 @@
 #include "Utility.h"
 #include <clocale>
 #include "MainFrm.h"
+#include "Core/PecaCore.h"
 
 #pragma comment(lib, "winmm.lib")	// PlaySound
 
@@ -104,17 +105,6 @@ bool	APICALL MyPeercastApp ::clearTemp()
 	return false;
 }
 
-
-// --------------------------------------------------
-void LOG2(const char *fmt,...)
-{
-	va_list ap;
-  	va_start(ap, fmt);
-	char str[4096];
-	vsprintf(str,fmt,ap);
-	OutputDebugString(str);
-   	va_end(ap);	
-}
 
 // ---------------------------------------
 /// コマンドラインをパースする
@@ -211,7 +201,11 @@ int Run(LPTSTR lpstrCmdLine, int nCmdShow = SW_SHOWDEFAULT)
 
 	if (killMe)
 		return 0;
-	
+
+#ifdef _DEBUG
+	CPecaCore	core;
+	core.start();
+#endif
 
 	// Perform application initialization:
 	peercastInst = new MyPeercastInst();
